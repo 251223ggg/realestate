@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>부동산 입지 분석</title>
+  <title>서울시 부동산 입지 분석 & 실거래가 조회</title>
   
   <!-- Pretendard 웹 폰트 -->
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
@@ -170,7 +170,7 @@
     <div class="floating-sidebar">
       <div class="sidebar-header">
         <span class="brand-tag">SEOUL REAL ESTATE ANALYTICS</span>
-        <h1>입지 분석 리포트</h1>
+        <h1>서울 입지 분석 리포트</h1>
       </div>
 
       <form class="search-box-wrapper" onsubmit="handleSearch(event)">
@@ -231,7 +231,7 @@
             <div class="progress-bg"><div class="progress-fill" id="barEnv" style="width: 90%;"></div></div>
           </div>
           <div class="score-item">
-            <div class="score-item-header"><span style="color: var(--han-river);">🌊 한강 보너스 (10점)</span><span id="scoreRiverText" style="color: var(--han-river);">+0점</span></div>
+            <div class="score-item-header"><span style="color: var(--han-river);">🌊 한강 보너스 (+10점)</span><span id="scoreRiverText" style="color: var(--han-river);">+0점</span></div>
             <div class="progress-bg"><div class="progress-fill river-fill" id="barRiver" style="width: 0%;"></div></div>
           </div>
         </div>
@@ -254,8 +254,8 @@
   </div>
 
   <script>
-    // 🔑 공공데이터포털 서비스키 (Decoding 키 권장)
-    const PUBLIC_DATA_SERVICE_KEY = '92c137cd088bdd952ac092dbc9e9148be3a60b74db44880d0f78a76cde5f4d0b';
+    // 🔑 공공데이터포털 서비스키 (Decoding 키 추천)
+    const PUBLIC_DATA_SERVICE_KEY = '여기에_공공데이터포털_인증키를_붙여넣으세요';
 
     let map = null, geocoder = null, placesService = null;
     let centerMarker = null, circle5Min = null, circle10Min = null;
@@ -309,7 +309,7 @@
             if (result[i].region_type === 'B') {
               document.getElementById('currentAddressText').innerText = result[i].address_name;
               const lawdCd = result[i].code.substring(0, 5);
-              fetchRealEstateTransactions(lawdCd); // 지난 1년치 실거래가 스캔
+              fetchRealEstateTransactions(lawdCd); // 안정화된 실거래가 스캔
               break;
             }
           }
@@ -325,8 +325,8 @@
       });
     }
 
-    // 🗓️ 지난 1년(12개월) 연월 목록 구하기
-    function getRecentMonthsList(count = 12) {
+    // 🗓️ 최근 연월 목록 구하기
+    function getRecentMonthsList(count = 4) {
       const list = [];
       const now = new Date();
       for (let i = 1; i <= count; i++) {
@@ -338,7 +338,7 @@
       return list;
     }
 
-    // 🌐 [지난 1년치 아파트 실거래가 통합 스캔]
+    // 🌐 [안정화된 실거래가 API 스캔]
     async function fetchRealEstateTransactions(lawdCd) {
       const container = document.getElementById('realEstatePriceContainer');
 
@@ -352,82 +352,50 @@
         return;
       }
 
-      container.innerHTML = `<div class="info-message-box">🔄 지난 1년간의 실거래가 데이터를 조회 중입니다...</div>`;
+      container.innerHTML = `<div class="info-message-box">🔄 아파트 실거래가 정보를 안전하게 불러오는 중입니다...</div>`;
 
       let cleanKey = PUBLIC_DATA_SERVICE_KEY.trim();
       try { if (cleanKey.includes('%')) cleanKey = decodeURIComponent(cleanKey); } catch(e) {}
 
-      const monthsToTry = getRecentMonthsList(12); // 최근 12개 월
-      let allTrades = [];
-      let hasAuthError = false;
-      let authErrorReason = '';
+      const monthsToTry = getRecentMonthsList(4); // 최근 4개월 순차 조회
+      let tradesFound = [];
+      let foundMonth = '';
+      let lastErrorMessage = '';
 
-      // 12개 월 비동기 병렬 요청 (Promise.all)
-      const requests = monthsToTry.map(ym => requestMolitApi(cleanKey, lawdCd, ym));
-      const results = await Promise.all(requests);
-
-      results.forEach((xmlDoc, index) => {
-        if (!xmlDoc) return;
-
-        const errMsg = getXmlValue(xmlDoc, 'errMsg') || getXmlValue(xmlDoc, 'returnAuthMsg');
-        const returnReasonCode = getXmlValue(xmlDoc, 'returnReasonCode');
-        const resultCode = getXmlValue(xmlDoc, 'resultCode');
-
-        if (errMsg || (returnReasonCode && returnReasonCode !== '00') || (resultCode && resultCode !== '00')) {
-          hasAuthError = true;
-          authErrorReason = errMsg || getXmlValue(xmlDoc, 'resultMsg') || '인증키 오류';
-          return;
+      // 순차 호출로 프록시 차단 방지
+      for (const ym of monthsToTry) {
+        const resData = await requestMolitApi(cleanKey, lawdCd, ym);
+        
+        if (resData.error) {
+          lastErrorMessage = resData.error;
+          continue;
         }
 
-        const items = xmlDoc.getElementsByTagName("item");
-        if (items && items.length > 0) {
-          const ym = monthsToTry[index];
-          for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            const aptName = getXmlValue(item, '아파트') || getXmlValue(item, '단지명') || '아파트';
-            const price = getXmlValue(item, '거래금액')?.trim() || '0';
-            const area = getXmlValue(item, '전용면적') || '0';
-            const floor = getXmlValue(item, '층') || '-';
-            const day = getXmlValue(item, '일') || '-';
-            const month = getXmlValue(item, '월') || ym.slice(4,6);
-            const year = getXmlValue(item, '년') || ym.slice(0,4);
-
-            const numYear = parseInt(year);
-            const numMonth = parseInt(month);
-            const numDay = parseInt(day);
-
-            allTrades.push({
-              aptName, price, area, floor, day: numDay, month: numMonth, year: numYear,
-              sortKey: numYear * 10000 + numMonth * 100 + numDay
-            });
-          }
+        if (resData.items && resData.items.length > 0) {
+          tradesFound = resData.items;
+          foundMonth = ym;
+          break; // 최근 데이터 확보 시 즉시 종료
         }
-      });
+      }
 
-      if (hasAuthError && allTrades.length === 0) {
-        container.innerHTML = `
-          <div class="info-message-box" style="color: #e11d48; background: #fff1f2; border-color: #fecdd3;">
-            ⚠️ <strong>공공데이터 API 인증 오류</strong><br><br>
-            • <strong>사유:</strong> ${authErrorReason}<br>
-            • <strong>해결책:</strong> 공공데이터포털에서 발급받은 <strong>[Decoding 키]</strong>를 사용했는지 확인해 보세요.<br>
-            • 발급 직후라면 시스템 등록까지 <strong>1~2시간</strong> 소요됩니다.
-          </div>
-        `;
+      if (tradesFound.length === 0) {
+        if (lastErrorMessage) {
+          container.innerHTML = `
+            <div class="info-message-box" style="color: #e11d48; background: #fff1f2; border-color: #fecdd3;">
+              ⚠️ <strong>공공데이터 API 오류</strong><br><br>
+              • <strong>상세 원인:</strong> ${lastErrorMessage}<br>
+              • <strong>해결 방법:</strong> 공공데이터포털에서 발급받은 <strong>[Decoding 키]</strong>를 사용했는지 확인해 주세요.
+            </div>
+          `;
+        } else {
+          container.innerHTML = `<div class="info-message-box">📭 최근 4개월간 해당 지역에 신고된 아파트 매매 거래 내역이 없습니다.</div>`;
+        }
         return;
       }
 
-      if (allTrades.length === 0) {
-        container.innerHTML = `<div class="info-message-box">📭 지난 1년간 해당 지역에 신고된 아파트 매매 거래 내역이 없습니다.</div>`;
-        return;
-      }
+      container.innerHTML = `<div style="font-size:12px; color:var(--text-sub); margin-bottom:10px; font-weight:700;">🗓️ ${foundMonth.slice(0,4)}년 ${foundMonth.slice(4,6)}월 실거래 내역 (${tradesFound.length}건)</div>`;
 
-      // 최신 거래일순 정렬
-      allTrades.sort((a, b) => b.sortKey - a.sortKey);
-
-      container.innerHTML = `<div style="font-size:12px; color:var(--text-sub); margin-bottom:10px; font-weight:700;">🗓️ 지난 1년간 실거래 내역 (총 ${allTrades.length}건 중 최신 20건)</div>`;
-
-      // 최신 20건 표시
-      allTrades.slice(0, 20).forEach(trade => {
+      tradesFound.slice(0, 15).forEach(trade => {
         const pyung = Math.round(parseFloat(trade.area) / 3.3);
         const card = document.createElement('div');
         card.className = 'trade-card';
@@ -439,17 +407,17 @@
           <div class="trade-details">
             <span>📐 ${Math.round(parseFloat(trade.area))}㎡ (${pyung}평)</span>
             <span>🏢 ${trade.floor}층</span>
-            <span>📅 ${trade.year}.${String(trade.month).padStart(2,'0')}.${String(trade.day).padStart(2,'0')}</span>
+            <span>📅 ${trade.month}월 ${trade.day}일</span>
           </div>
         `;
         container.appendChild(card);
       });
     }
 
-    // CORS 우회 API 요청
+    // 안전한 CORS 우회 & JSON/XML 자동 파싱
     async function requestMolitApi(serviceKey, lawdCd, dealYmd) {
       const encodedKey = encodeURIComponent(serviceKey);
-      const targetUrl = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade?serviceKey=${encodedKey}&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}`;
+      const targetUrl = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade?serviceKey=${encodedKey}&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}&_type=json`;
       
       const proxies = [
         `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
@@ -459,14 +427,62 @@
       for (const proxy of proxies) {
         try {
           const res = await fetch(proxy);
-          if (res.ok) {
-            const text = await res.text();
+          if (!res.ok) continue;
+
+          const text = await res.text();
+          
+          // 1. JSON 응답 파싱 시도
+          try {
+            const jsonObj = JSON.parse(text);
+            const responseData = jsonObj.response || jsonObj.getRTMSDataSvcAptTrade;
+            
+            if (responseData && responseData.header) {
+              const code = responseData.header.resultCode;
+              if (code !== '00' && code !== '0') {
+                return { error: responseData.header.resultMsg || '인증키 거부' };
+              }
+            }
+
+            const rawItems = responseData?.body?.items?.item;
+            if (rawItems) {
+              const itemsArray = Array.isArray(rawItems) ? rawItems : [rawItems];
+              const parsed = itemsArray.map(item => ({
+                aptName: item.아파트 || item.단지명 || '아파트',
+                price: item.거래금액?.trim() || '0',
+                area: item.전용면적 || '0',
+                floor: item.층 || '-',
+                month: item.월 || dealYmd.slice(4,6),
+                day: item.일 || '-'
+              }));
+              return { items: parsed };
+            }
+          } catch (e) {
+            // JSON 파싱 실패 시 XML 파싱 시도
             const parser = new DOMParser();
-            return parser.parseFromString(text, "text/xml");
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+            const xmlItems = xmlDoc.getElementsByTagName("item");
+
+            if (xmlItems.length > 0) {
+              const parsed = [];
+              for (let i = 0; i < xmlItems.length; i++) {
+                const item = xmlItems[i];
+                parsed.push({
+                  aptName: getXmlValue(item, '아파트') || '아파트',
+                  price: getXmlValue(item, '거래금액')?.trim() || '0',
+                  area: getXmlValue(item, '전용면적') || '0',
+                  floor: getXmlValue(item, '층') || '-',
+                  month: getXmlValue(item, '월') || dealYmd.slice(4,6),
+                  day: getXmlValue(item, '일') || '-'
+                });
+              }
+              return { items: parsed };
+            }
           }
-        } catch(e) {}
+        } catch (err) {
+          console.warn('프록시 응답 실패:', proxy);
+        }
       }
-      return null;
+      return { error: 'CORS 프록시 연결 실패' };
     }
 
     function getXmlValue(parent, tagName) {
