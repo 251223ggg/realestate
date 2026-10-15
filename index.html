@@ -3,16 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>부동산 입지 분석 및 실거래가 조회 플랫폼</title>
+  <title>부동산 입지 분석 & 실거래가 조회</title>
   
-  <!-- Pretendard 폰트 (트렌디한 웹 폰트) -->
+  <!-- Pretendard 웹 폰트 -->
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 
-  <!-- 카카오맵 JavaScript SDK (요청받은 발급키 적용) -->
+  <!-- 카카오맵 JavaScript SDK -->
   <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5845b1683e12f110576582b0adefc345&libraries=services&autoload=false"></script>
 
   <style>
-    /* 1. 디자인 시스템 변수 설정 */
     :root {
       --primary: #3182f6;
       --primary-dark: #1b64da;
@@ -26,508 +25,140 @@
       --text-muted: #8b95a1;
       --bg-surface: #ffffff;
       --bg-sub: #f9fafb;
-      --border-color: #f2f4f6;
+      --border-color: #e5e7eb;
       --radius-lg: 20px;
       --radius-md: 12px;
-      --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+      --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.08);
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-      -webkit-font-smoothing: antialiased;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background-color: #f2f4f6; }
 
-    body, html {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background-color: #f2f4f6;
-    }
+    .app-container { position: relative; width: 100vw; height: 100vh; display: flex; }
+    .map-wrapper { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+    #map { width: 100%; height: 100%; }
 
-    /* 2. 메인 구조 */
-    .app-container {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-    }
-
-    /* 3. 지도 영역 */
-    .map-wrapper {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-    }
-
-    #map {
-      width: 100%;
-      height: 100%;
-    }
-
-    /* 4. 플로팅 사이드바 */
+    /* 플로팅 사이드바 */
     .floating-sidebar {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      width: 420px;
-      height: calc(100vh - 40px);
-      background: var(--bg-surface);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-card);
-      z-index: 10;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      position: absolute; top: 20px; left: 20px; width: 420px;
+      height: calc(100vh - 40px); background: #ffffff;
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-card);
+      z-index: 10; display: flex; flex-direction: column; overflow: hidden;
       border: 1px solid rgba(255, 255, 255, 0.8);
-      backdrop-filter: blur(12px);
     }
 
-    .sidebar-header {
-      padding: 24px 20px 16px;
-      background: #ffffff;
-    }
-
-    .brand-tag {
-      font-size: 11px;
-      font-weight: 800;
-      color: var(--primary);
-      letter-spacing: 1px;
-      margin-bottom: 4px;
-      display: block;
-    }
-
-    .sidebar-header h1 {
-      font-size: 22px;
-      font-weight: 800;
-      color: var(--text-main);
-      letter-spacing: -0.5px;
-    }
+    .sidebar-header { padding: 20px 20px 14px; background: #ffffff; }
+    .brand-tag { font-size: 11px; font-weight: 800; color: var(--primary); letter-spacing: 1px; display: block; margin-bottom: 4px; }
+    .sidebar-header h1 { font-size: 20px; font-weight: 800; color: var(--text-main); }
 
     /* 검색바 */
-    .search-box-wrapper {
-      padding: 0 20px 16px;
-      background: #ffffff;
-    }
-
+    .search-box-wrapper { padding: 0 20px 14px; background: #ffffff; }
     .search-input-group {
-      position: relative;
-      display: flex;
-      align-items: center;
-      background-color: var(--bg-sub);
-      border: 1.5px solid transparent;
-      border-radius: var(--radius-md);
-      padding: 4px 6px 4px 14px;
-      transition: all 0.2s ease;
+      display: flex; align-items: center; background-color: var(--bg-sub);
+      border: 1.5px solid var(--border-color); border-radius: var(--radius-md); padding: 4px 6px 4px 14px;
     }
+    .search-input-group:focus-within { background-color: #ffffff; border-color: var(--primary); }
+    .search-input-group input { flex: 1; border: none; background: transparent; font-size: 14px; font-weight: 600; outline: none; padding: 6px 0; }
+    .search-input-group button { background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer; }
 
-    .search-input-group:focus-within {
-      background-color: #ffffff;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(49, 130, 246, 0.12);
+    /* 📌 3분할 탭 메뉴 (강조) */
+    .tab-menu { 
+      display: flex; 
+      width: 100%;
+      border-top: 1px solid var(--border-color);
+      border-bottom: 2px solid var(--border-color); 
+      background: #ffffff; 
     }
-
-    .search-input-group input {
-      flex: 1;
-      border: none;
-      background: transparent;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-main);
-      outline: none;
-      padding: 8px 0;
-    }
-
-    .search-input-group button {
-      background: var(--primary);
-      color: #ffffff;
-      border: none;
-      border-radius: 8px;
-      padding: 8px 14px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .search-input-group button:hover {
-      background: var(--primary-dark);
-    }
-
-    /* 탭 메뉴 (3분할: 입지 리포트 / 실거래가 / 주변 시설) */
-    .tab-menu {
-      display: flex;
-      border-bottom: 1px solid var(--border-color);
-      background: #ffffff;
-    }
-
     .tab-btn {
-      flex: 1;
-      padding: 12px 0;
-      font-size: 13px;
-      font-weight: 700;
+      flex: 1; 
+      padding: 14px 0; 
+      font-size: 13.5px; 
+      font-weight: 800; 
       color: var(--text-muted);
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      cursor: pointer;
+      background: #ffffff; 
+      border: none; 
+      border-bottom: 3px solid transparent; 
+      cursor: pointer; 
+      text-align: center;
       transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--primary); background: #f8fafc; }
+    .tab-btn.active { 
+      color: var(--primary); 
+      border-bottom-color: var(--primary); 
+      background: #eff6ff; 
     }
 
-    .tab-btn.active {
-      color: var(--primary);
-      border-bottom-color: var(--primary);
-    }
+    /* 탭 콘텐츠 영역 */
+    .tab-content { flex: 1; overflow-y: auto; padding: 16px; background-color: #fafbfc; }
 
-    /* 탭 콘텐츠 컨테이너 */
-    .tab-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px;
-      background-color: #fafbfc;
-    }
-
-    /* 입지 요약 스코어 카드 */
-    .score-summary-card {
-      background: #ffffff;
-      border-radius: var(--radius-md);
-      padding: 20px;
-      border: 1px solid var(--border-color);
-      margin-bottom: 16px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-    }
-
-    .location-name {
-      font-size: 13px;
-      color: var(--text-sub);
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .score-main-row {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      margin-bottom: 10px;
-    }
-
-    .score-number {
-      font-size: 38px;
-      font-weight: 900;
-      color: var(--text-main);
-      letter-spacing: -1px;
-    }
-
-    .score-number span {
-      font-size: 18px;
-      font-weight: 600;
-      color: var(--text-muted);
-    }
-
-    .grade-badge {
-      font-size: 15px;
-      font-weight: 800;
-      padding: 6px 14px;
-      border-radius: 20px;
-      color: #ffffff;
-    }
-
+    /* 📊 탭 1: 입지 리포트 카드 */
+    .score-summary-card { background: #ffffff; border-radius: var(--radius-md); padding: 18px; border: 1px solid var(--border-color); margin-bottom: 14px; }
+    .location-name { font-size: 13px; color: var(--text-sub); font-weight: 600; margin-bottom: 6px; }
+    .score-main-row { display: flex; align-items: baseline; justify-content: space-between; }
+    .score-number { font-size: 36px; font-weight: 900; color: var(--text-main); }
+    .score-number span { font-size: 16px; color: var(--text-muted); }
+    .grade-badge { font-size: 14px; font-weight: 800; padding: 6px 14px; border-radius: 20px; color: #ffffff; }
     .grade-S-plus { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
     .grade-S { background: linear-gradient(135deg, #059669, #10b981); }
     .grade-A { background: linear-gradient(135deg, #d97706, #f59e0b); }
     .grade-B { background: linear-gradient(135deg, #4b5563, #6b7280); }
     .grade-C { background: linear-gradient(135deg, #dc2626, #ef4444); }
 
-    /* 🌊 한강 프리미엄 보너스 뱃지 */
     .han-river-badge {
-      display: none;
-      align-items: center;
-      gap: 6px;
-      background: linear-gradient(135deg, var(--han-river-soft), #bae6fd);
-      color: var(--han-river);
-      font-size: 12px;
-      font-weight: 800;
-      padding: 8px 12px;
-      border-radius: 8px;
-      margin-top: 10px;
-      border: 1px solid rgba(2, 132, 199, 0.2);
+      display: none; align-items: center; gap: 6px; background: var(--han-river-soft);
+      color: var(--han-river); font-size: 12px; font-weight: 800; padding: 8px 12px;
+      border-radius: 8px; margin-top: 10px; border: 1px solid rgba(2, 132, 199, 0.2);
     }
 
-    /* 도보 소요 시간 인포 위젯 */
-    .walk-metric-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
+    .walk-metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .metric-card { background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px; }
+    .metric-card .label { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; }
+    .metric-card .val { font-size: 14px; font-weight: 800; color: var(--text-main); }
+    .metric-card .sub { font-size: 11px; color: var(--primary); font-weight: 700; margin-top: 2px; }
 
-    .metric-card {
-      background: #ffffff;
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 12px;
-    }
+    .category-breakdown { background: #ffffff; border-radius: var(--radius-md); padding: 16px; border: 1px solid var(--border-color); }
+    .score-item { margin-bottom: 10px; }
+    .score-item-header { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--text-sub); margin-bottom: 4px; }
+    .progress-bg { height: 8px; background: var(--bg-sub); border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.4s ease; }
+    .progress-fill.river-fill { background: var(--han-river); }
 
-    .metric-card .label {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
+    /* 💰 탭 2: 실거래가 카드 스타일 */
+    .trade-card { background: #ffffff; padding: 14px 16px; border-radius: var(--radius-md); margin-bottom: 10px; border: 1px solid var(--border-color); }
+    .trade-card .apt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .trade-card .apt-name { font-size: 14.5px; font-weight: 800; color: var(--text-main); }
+    .trade-card .price-tag { font-size: 13.5px; font-weight: 800; color: var(--price-tag); background: var(--price-bg); padding: 3px 8px; border-radius: 6px; }
+    .trade-card .trade-details { display: flex; gap: 10px; font-size: 11.5px; color: var(--text-sub); font-weight: 600; }
 
-    .metric-card .val {
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--text-main);
-    }
+    /* 📍 탭 3: 주변 시설 카드 */
+    .place-card { background: #ffffff; padding: 12px 14px; border-radius: var(--radius-md); margin-bottom: 8px; border: 1px solid var(--border-color); cursor: pointer; }
+    .place-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+    .place-card .badge { display: inline-block; font-size: 10px; font-weight: 700; color: var(--primary); background: var(--primary-soft); padding: 2px 6px; border-radius: 4px; margin-bottom: 4px; }
+    .place-card .title { font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 2px; }
+    .place-card .address { font-size: 11.5px; color: var(--text-sub); }
 
-    .metric-card .sub {
-      font-size: 11px;
-      color: var(--primary);
-      font-weight: 700;
-      margin-top: 2px;
-    }
+    .info-message-box { padding: 20px; text-align: center; font-size: 13px; color: var(--text-sub); line-height: 1.6; background: #ffffff; border-radius: var(--radius-md); border: 1px solid var(--border-color); }
 
-    /* 항목별 상세 점수바 */
-    .category-breakdown {
-      background: #ffffff;
-      border-radius: var(--radius-md);
-      padding: 16px;
-      border: 1px solid var(--border-color);
-    }
+    /* 레이어 토글 & 버튼 */
+    .layer-toggle-panel { position: absolute; top: 20px; right: 20px; z-index: 10; background: #ffffff; padding: 8px 12px; border-radius: var(--radius-md); box-shadow: var(--shadow-card); display: flex; gap: 6px; }
+    .layer-btn { padding: 6px 12px; font-size: 12px; font-weight: 700; border: 1px solid var(--border-color); background: var(--bg-sub); color: var(--text-sub); border-radius: 16px; cursor: pointer; }
+    .layer-btn.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }
 
-    .score-item {
-      margin-bottom: 12px;
-    }
+    .my-location-fab { position: absolute; bottom: 24px; right: 20px; z-index: 10; background: #ffffff; color: var(--text-main); border: none; padding: 12px 18px; border-radius: 30px; font-size: 13.5px; font-weight: 700; box-shadow: var(--shadow-card); cursor: pointer; }
 
-    .score-item:last-child {
-      margin-bottom: 0;
-    }
-
-    .score-item-header {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12.5px;
-      font-weight: 700;
-      color: var(--text-sub);
-      margin-bottom: 6px;
-    }
-
-    .progress-bg {
-      height: 8px;
-      background: var(--bg-sub);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: var(--primary);
-      border-radius: 4px;
-      transition: width 0.5s ease;
-    }
-
-    .progress-fill.river-fill {
-      background: var(--han-river);
-    }
-
-    /* 🏢 아파트 실거래가 전용 카드 스타일 */
-    .trade-card {
-      background: #ffffff;
-      padding: 16px;
-      border-radius: var(--radius-md);
-      margin-bottom: 10px;
-      border: 1px solid var(--border-color);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-    }
-
-    .trade-card .apt-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 6px;
-    }
-
-    .trade-card .apt-name {
-      font-size: 15px;
-      font-weight: 800;
-      color: var(--text-main);
-    }
-
-    .trade-card .price-tag {
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--price-tag);
-      background: var(--price-bg);
-      padding: 3px 8px;
-      border-radius: 6px;
-    }
-
-    .trade-card .trade-details {
-      display: flex;
-      gap: 12px;
-      font-size: 12px;
-      color: var(--text-sub);
-      font-weight: 600;
-    }
-
-    /* 장소 리스트 카드 */
-    .place-card {
-      background: #ffffff;
-      padding: 14px 16px;
-      border-radius: var(--radius-md);
-      margin-bottom: 8px;
-      border: 1px solid var(--border-color);
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .place-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
-      border-color: var(--primary-soft);
-    }
-
-    .place-card .badge {
-      display: inline-block;
-      font-size: 10.5px;
-      font-weight: 700;
-      color: var(--primary);
-      background: var(--primary-soft);
-      padding: 2px 6px;
-      border-radius: 4px;
-      margin-bottom: 4px;
-    }
-
-    .place-card .title {
-      font-size: 14.5px;
-      font-weight: 700;
-      color: var(--text-main);
-      margin-bottom: 4px;
-    }
-
-    .place-card .address {
-      font-size: 12px;
-      color: var(--text-sub);
-    }
-
-    /* 메시지 박스 */
-    .info-message-box {
-      padding: 20px;
-      text-align: center;
-      font-size: 13px;
-      color: var(--text-sub);
-      line-height: 1.5;
-      background: #ffffff;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-color);
-    }
-
-    /* 우상단 레이어 토글 패널 */
-    .layer-toggle-panel {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      z-index: 10;
-      background: #ffffff;
-      padding: 8px 12px;
-      border-radius: var(--radius-md);
-      box-shadow: var(--shadow-card);
-      display: flex;
-      gap: 6px;
-    }
-
-    .layer-btn {
-      padding: 6px 12px;
-      font-size: 12px;
-      font-weight: 700;
-      border: 1px solid var(--border-color);
-      background: var(--bg-sub);
-      color: var(--text-sub);
-      border-radius: 16px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .layer-btn.active {
-      background: var(--primary);
-      color: #ffffff;
-      border-color: var(--primary);
-    }
-
-    /* 우하단 내 위치 FAB */
-    .my-location-fab {
-      position: absolute;
-      bottom: 24px;
-      right: 20px;
-      z-index: 10;
-      background: #ffffff;
-      color: var(--text-main);
-      border: none;
-      padding: 12px 18px;
-      border-radius: 30px;
-      font-size: 13.5px;
-      font-weight: 700;
-      box-shadow: var(--shadow-card);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s ease;
-    }
-
-    .my-location-fab:hover {
-      transform: scale(1.03);
-    }
-
-    /* 지도 오버레이 커스텀 카드 */
-    .custom-overlay-card {
-      position: relative;
-      bottom: 45px;
-      border-radius: 14px;
-      background: #ffffff;
-      padding: 14px 16px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-      border: 1px solid var(--border-color);
-      min-width: 200px;
-    }
-
-    .custom-overlay-card strong {
-      display: block;
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--text-main);
-      margin-bottom: 4px;
-    }
-
-    .custom-overlay-card .addr {
-      font-size: 11.5px;
-      color: var(--text-sub);
-      margin-bottom: 6px;
-    }
-
-    .custom-overlay-card .link-btn {
-      font-size: 11.5px;
-      font-weight: 700;
-      color: var(--primary);
-      text-decoration: none;
-    }
+    .custom-overlay-card { position: relative; bottom: 45px; border-radius: 14px; background: #ffffff; padding: 14px 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid var(--border-color); min-width: 200px; }
+    .custom-overlay-card strong { display: block; font-size: 14px; font-weight: 800; color: var(--text-main); margin-bottom: 4px; }
+    .custom-overlay-card .addr { font-size: 11.5px; color: var(--text-sub); margin-bottom: 6px; }
+    .custom-overlay-card .link-btn { font-size: 11.5px; font-weight: 700; color: var(--primary); text-decoration: none; }
   </style>
 </head>
 <body>
 
   <div class="app-container">
-    <!-- 풀스크린 지도 -->
-    <div class="map-wrapper">
-      <div id="map"></div>
-    </div>
+    <div class="map-wrapper"><div id="map"></div></div>
 
-    <!-- 우상단 카테고리 레이어 토글 -->
     <div class="layer-toggle-panel">
       <button class="layer-btn active" onclick="toggleLayer('SW8', this)">🚆 지하철</button>
       <button class="layer-btn active" onclick="toggleLayer('SC4', this)">🏫 학교/학원</button>
@@ -535,14 +166,13 @@
       <button class="layer-btn active" onclick="toggleLayer('HP8', this)">🏥 병원</button>
     </div>
 
-    <!-- 플로팅 사이드 패널 -->
+    <!-- 사이드바 -->
     <div class="floating-sidebar">
       <div class="sidebar-header">
         <span class="brand-tag">SEOUL REAL ESTATE ANALYTICS</span>
         <h1>입지 분석 리포트</h1>
       </div>
 
-      <!-- 검색 입력창 -->
       <form class="search-box-wrapper" onsubmit="handleSearch(event)">
         <div class="search-input-group">
           <input type="text" id="keywordInput" placeholder="지역, 지하철역, 단지명 검색" value="여의도역">
@@ -550,14 +180,14 @@
         </div>
       </form>
 
-      <!-- 3분할 탭 버튼 -->
+      <!-- 📌 3분할 탭 버튼 목록 -->
       <div class="tab-menu">
-        <button class="tab-btn active" id="tabReportBtn" onclick="switchTab('report')">입지 리포트</button>
-        <button class="tab-btn" id="tabPriceBtn" onclick="switchTab('price')">🏢 실거래가</button>
-        <button class="tab-btn" id="tabListBtn" onclick="switchTab('list')">주변 시설</button>
+        <button class="tab-btn active" id="tabReportBtn" onclick="switchTab('report')">📊 입지 리포트</button>
+        <button class="tab-btn" id="tabPriceBtn" onclick="switchTab('price')">💰 실거래가</button>
+        <button class="tab-btn" id="tabListBtn" onclick="switchTab('list')">📍 주변 시설</button>
       </div>
 
-      <!-- 1. 입지 리포트 탭 -->
+      <!-- 1. 📊 입지 리포트 탭 -->
       <div class="tab-content" id="reportTab">
         <div class="score-summary-card">
           <div class="location-name" id="currentAddressText">서울시 영등포구 여의도동 (분석중...)</div>
@@ -565,14 +195,9 @@
             <div class="score-number" id="totalScoreText">85<span>/100</span></div>
             <div class="grade-badge grade-S" id="gradeBadgeText">S 등급</div>
           </div>
-          
           <div class="han-river-badge" id="hanRiverBadge">
-            <span id="hanRiverBadgeText">🌊 한강뷰 프리미엄 (+10점)</span>
+            <span id="hanRiverBadgeText">🌊 한강뷰 (10점)</span>
           </div>
-
-          <p style="font-size: 12px; color: var(--text-sub); line-height: 1.4; margin-top: 10px;" id="scoreSummaryDesc">
-            도보 5분(400m) 및 10분(800m) 인프라와 한강 접근성을 바탕으로 산출된 입지 결과입니다.
-          </p>
         </div>
 
         <div class="walk-metric-grid">
@@ -590,91 +215,56 @@
 
         <div class="category-breakdown">
           <div class="score-item">
-            <div class="score-item-header">
-              <span>🚆 교통 입지 (30점)</span>
-              <span id="scoreTrafficText">25점</span>
-            </div>
+            <div class="score-item-header"><span>🚆 교통 입지 (30점)</span><span id="scoreTrafficText">25점</span></div>
             <div class="progress-bg"><div class="progress-fill" id="barTraffic" style="width: 83%;"></div></div>
           </div>
           <div class="score-item">
-            <div class="score-item-header">
-              <span>🏫 교육 입지 (30점)</span>
-              <span id="scoreEduText">24점</span>
-            </div>
+            <div class="score-item-header"><span>🏫 교육 입지 (30점)</span><span id="scoreEduText">24점</span></div>
             <div class="progress-bg"><div class="progress-fill" id="barEdu" style="width: 80%;"></div></div>
           </div>
           <div class="score-item">
-            <div class="score-item-header">
-              <span>🛒 편의/슬세권 (20점)</span>
-              <span id="scoreConvText">18점</span>
-            </div>
+            <div class="score-item-header"><span>🛒 편의/슬세권 (20점)</span><span id="scoreConvText">18점</span></div>
             <div class="progress-bg"><div class="progress-fill" id="barConv" style="width: 90%;"></div></div>
           </div>
           <div class="score-item">
-            <div class="score-item-header">
-              <span>🌳 환경/의료 (20점)</span>
-              <span id="scoreEnvText">18점</span>
-            </div>
+            <div class="score-item-header"><span>🌳 환경/의료 (20점)</span><span id="scoreEnvText">18점</span></div>
             <div class="progress-bg"><div class="progress-fill" id="barEnv" style="width: 90%;"></div></div>
           </div>
           <div class="score-item">
-            <div class="score-item-header">
-              <span style="color: var(--han-river);">🌊 한강 프리미엄 보너스 (10점)</span>
-              <span id="scoreRiverText" style="color: var(--han-river);">+0점</span>
-            </div>
+            <div class="score-item-header"><span style="color: var(--han-river);">🌊 한강 보너스 (10점)</span><span id="scoreRiverText" style="color: var(--han-river);">+0점</span></div>
             <div class="progress-bg"><div class="progress-fill river-fill" id="barRiver" style="width: 0%;"></div></div>
           </div>
         </div>
       </div>
 
-      <!-- 2. 🏢 실거래가 탭 (XML API 데이터 출력) -->
+      <!-- 2. 💰 실거래가 탭 (클릭 시 노출) -->
       <div class="tab-content" id="priceTab" style="display: none;">
         <div id="realEstatePriceContainer">
-          <div class="info-message-box">
-            📍 지도를 클릭하시면 해당 지역의 최근 아파트 실거래가를 자동으로 불러옵니다.
-          </div>
+          <div class="info-message-box">📍 지도를 클릭하시면 해당 지역의 최근 아파트 실거래가를 불러옵니다.</div>
         </div>
       </div>
 
-      <!-- 3. 주변 시설 탭 -->
+      <!-- 3. 📍 주변 시설 탭 (클릭 시 노출) -->
       <div class="tab-content" id="listTab" style="display: none;">
         <div id="placesList"></div>
       </div>
     </div>
 
-    <!-- 내 위치 버튼 -->
-    <button class="my-location-fab" onclick="moveToUserLocation()">
-      📍 내 위치 주변 분석
-    </button>
+    <button class="my-location-fab" onclick="moveToUserLocation()">📍 내 위치 주변 분석</button>
   </div>
 
   <script>
-    // ------------------------------------------------------------------
-    // 🔑 [공공데이터포털 인증키 입력 부분]
-    // 발급받으신 서비스키(Decoding 키)를 아래 따옴표 안에 복사해서 넣으세요!
-    // ------------------------------------------------------------------
+    // 🔑 공공데이터포털 서비스키 (Decoding 키 권장)
     const PUBLIC_DATA_SERVICE_KEY = '92c137cd088bdd952ac092dbc9e9148be3a60b74db44880d0f78a76cde5f4d0b';
 
-    // 전역 변수
-    let map = null;
-    let geocoder = null;
-    let placesService = null;
-
-    let centerMarker = null;
-    let circle5Min = null;  
-    let circle10Min = null; 
-
-    let currentMarkers = [];
-    let activeOverlay = null;
-
+    let map = null, geocoder = null, placesService = null;
+    let centerMarker = null, circle5Min = null, circle10Min = null;
+    let currentMarkers = [], activeOverlay = null;
     let activeCategories = ['SW8', 'SC4', 'MT1', 'HP8'];
     let lastScanData = [];
 
-    const DEFAULT_LAT = 37.521569; // 여의도역
-    const DEFAULT_LNG = 126.924311;
-    const DEFAULT_ZOOM = 5;
+    const DEFAULT_LAT = 37.521569, DEFAULT_LNG = 126.924311, DEFAULT_ZOOM = 5;
 
-    // Kakao Map SDK 초기화
     kakao.maps.load(function () {
       initMap();
       getUserGeolocation();
@@ -682,16 +272,10 @@
 
     function initMap() {
       const container = document.getElementById('map');
-      const options = {
-        center: new kakao.maps.LatLng(DEFAULT_LAT, DEFAULT_LNG),
-        level: DEFAULT_ZOOM
-      };
-
-      map = new kakao.maps.Map(container, options);
+      map = new kakao.maps.Map(container, { center: new kakao.maps.LatLng(DEFAULT_LAT, DEFAULT_LNG), level: DEFAULT_ZOOM });
       geocoder = new kakao.maps.services.Geocoder();
       placesService = new kakao.maps.services.Places();
 
-      // 지도 클릭 이벤트
       kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
         analyzeLocation(mouseEvent.latLng);
       });
@@ -713,33 +297,25 @@
       }
     }
 
-    function moveToUserLocation() {
-      getUserGeolocation();
-    }
+    function moveToUserLocation() { getUserGeolocation(); }
 
-    // 위치 클릭 시 입지 분석 + XML 실거래가 API 동시 수행
     function analyzeLocation(latLng) {
       map.panTo(latLng);
       drawBuffers(latLng);
 
-      // 카카오 Geocoder로 법정동 코드(LAWD_CD) 및 주소 추출
       geocoder.coord2RegionCode(latLng.getLng(), latLng.getLat(), (result, status) => {
         if (status === kakao.maps.services.Status.OK) {
           for (let i = 0; i < result.length; i++) {
-            if (result[i].region_type === 'B') { // 법정동 기준
-              const addressName = result[i].address_name;
-              document.getElementById('currentAddressText').innerText = addressName;
-
-              // 법정동 10자리 코드 중 앞 5자리가 국토교통부 LAWD_CD입니다! (예: 영등포구 11560)
+            if (result[i].region_type === 'B') {
+              document.getElementById('currentAddressText').innerText = result[i].address_name;
               const lawdCd = result[i].code.substring(0, 5);
-              fetchRealEstateTransactions(lawdCd); // XML API 호출!
+              fetchRealEstateTransactions(lawdCd);
               break;
             }
           }
         }
       });
 
-      // 인프라 스캔
       fetchSurroundingData(latLng).then((data) => {
         lastScanData = data;
         const scoreResult = calculateStrictScore(data);
@@ -749,57 +325,51 @@
       });
     }
 
-    // 🌐 [XML API 호출 함수] 공공데이터포털 아파트 실거래가 API 파싱
-    async function fetchRealEstateTransactions(lawdCd, dealYmd = '202405') {
+    async function fetchRealEstateTransactions(lawdCd) {
       const container = document.getElementById('realEstatePriceContainer');
 
-      // 키 입력 여부 검사
       if (!PUBLIC_DATA_SERVICE_KEY || PUBLIC_DATA_SERVICE_KEY.includes('여기에')) {
         container.innerHTML = `
           <div class="info-message-box">
             🔑 <strong>공공데이터 인증키 필요</strong><br><br>
-            스크립트 상단의 <code>PUBLIC_DATA_SERVICE_KEY</code> 변수에 발급받으신 서비스키를 넣으시면 실제 아파트 실거래가가 여기에 표시됩니다.
+            JS 상단 <code>PUBLIC_DATA_SERVICE_KEY</code> 변수에 발급받으신 서비스키(Decoding 키)를 입력해 주세요.
           </div>
         `;
         return;
       }
 
-      container.innerHTML = `<div class="info-message-box">🔄 해당 지역의 최신 실거래가를 조회하는 중...</div>`;
+      container.innerHTML = `<div class="info-message-box">🔄 아파트 실거래가 정보를 가져오는 중...</div>`;
 
-      // 국토교통부 아파트매매 실거래자료 API 엔드포인트
-      const targetUrl = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade?serviceKey=${PUBLIC_DATA_SERVICE_KEY}&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}`;
-      
-      // 브라우저 CORS 방지 프록시 URL
+      let cleanKey = PUBLIC_DATA_SERVICE_KEY.trim();
+      try { if (cleanKey.includes('%')) cleanKey = decodeURIComponent(cleanKey); } catch(e) {}
+
+      const dealYmd = '202405';
+      const encodedKey = encodeURIComponent(cleanKey);
+      const targetUrl = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade?serviceKey=${encodedKey}&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}`;
       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
 
       try {
         const response = await fetch(proxyUrl);
         const xmlText = await response.text();
 
-        // XML DOM 파서 생성
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-
         const items = xmlDoc.getElementsByTagName("item");
 
         if (items.length === 0) {
-          container.innerHTML = `<div class="info-message-box">📭 해당 거래월(${dealYmd})에는 신고된 아파트 실거래 내역이 없습니다.</div>`;
+          container.innerHTML = `<div class="info-message-box">📭 최근 거래 신고 내역이 없습니다.</div>`;
           return;
         }
 
-        container.innerHTML = ''; // 기존 내역 초기화
-
-        // XML <item> 태그 수식 처리
-        for (let i = 0; i < Math.min(items.length, 15); i++) { // 최대 15개 표시
+        container.innerHTML = '';
+        for (let i = 0; i < Math.min(items.length, 15); i++) {
           const item = items[i];
-          
           const aptName = getXmlValue(item, '아파트') || getXmlValue(item, '단지명') || '아파트';
           const price = getXmlValue(item, '거래금액')?.trim() || '0';
           const area = getXmlValue(item, '전용면적') || '0';
           const floor = getXmlValue(item, '층') || '-';
           const day = getXmlValue(item, '일') || '-';
           const month = getXmlValue(item, '월') || '-';
-
           const pyung = Math.round(parseFloat(area) / 3.3);
 
           const card = document.createElement('div');
@@ -810,73 +380,43 @@
               <span class="price-tag">${price} 만원</span>
             </div>
             <div class="trade-details">
-              <span>📐 전용 ${Math.round(parseFloat(area))}㎡ (${pyung}평)</span>
+              <span>📐 ${Math.round(parseFloat(area))}㎡ (${pyung}평)</span>
               <span>🏢 ${floor}층</span>
-              <span>📅 ${month}월 ${day}일 거래</span>
+              <span>📅 ${month}월 ${day}일</span>
             </div>
           `;
           container.appendChild(card);
         }
-
       } catch (err) {
-        console.error('XML API 연동 에러:', err);
-        container.innerHTML = `<div class="info-message-box">❌ 실거래가 데이터를 가져오는 중 오류가 발생했습니다. (인증키 형식을 확인해 주세요)</div>`;
+        container.innerHTML = `<div class="info-message-box" style="color:#e11d48;">❌ 실거래가 조회 오류 발생</div>`;
       }
     }
 
-    // XML 태그 텍스트 추출 헬퍼 함수
     function getXmlValue(parent, tagName) {
       const el = parent.getElementsByTagName(tagName)[0];
       return el ? el.textContent : null;
     }
 
-    // 버퍼 동심원 표출
     function drawBuffers(center) {
       if (centerMarker) centerMarker.setMap(null);
       if (circle5Min) circle5Min.setMap(null);
       if (circle10Min) circle10Min.setMap(null);
 
       centerMarker = new kakao.maps.Marker({ position: center, map: map });
-
-      circle5Min = new kakao.maps.Circle({
-        center: center,
-        radius: 400,
-        strokeWeight: 2,
-        strokeColor: '#3182F6',
-        strokeOpacity: 0.8,
-        fillColor: '#3182F6',
-        fillOpacity: 0.1,
-        map: map
-      });
-
-      circle10Min = new kakao.maps.Circle({
-        center: center,
-        radius: 800,
-        strokeWeight: 1.5,
-        strokeColor: '#6B7280',
-        strokeOpacity: 0.7,
-        strokeStyle: 'dash',
-        fillColor: '#6B7280',
-        fillOpacity: 0.04,
-        map: map
-      });
+      circle5Min = new kakao.maps.Circle({ center: center, radius: 400, strokeWeight: 2, strokeColor: '#3182F6', strokeOpacity: 0.8, fillColor: '#3182F6', fillOpacity: 0.1, map: map });
+      circle10Min = new kakao.maps.Circle({ center: center, radius: 800, strokeWeight: 1.5, strokeColor: '#6B7280', strokeOpacity: 0.7, strokeStyle: 'dash', fillColor: '#6B7280', fillOpacity: 0.04, map: map });
     }
 
-    // 카테고리 + 한강 스캔
     function fetchSurroundingData(center) {
       const categories = [
-        { type: 'category', code: 'SW8' },
-        { type: 'category', code: 'SC4' },
-        { type: 'category', code: 'AC5' },
-        { type: 'type_mt', code: 'MT1' },
-        { type: 'type_cs', code: 'CS2' },
-        { type: 'category', code: 'HP8' },
-        { type: 'keyword', code: 'RIVER', kw: '한강공원' }
+        { type: 'cat', code: 'SW8' }, { type: 'cat', code: 'SC4' }, { type: 'cat', code: 'AC5' },
+        { type: 'cat', code: 'MT1' }, { type: 'cat', code: 'CS2' }, { type: 'cat', code: 'HP8' },
+        { type: 'kw', code: 'RIVER', kw: '한강공원' }
       ];
 
       const promises = categories.map((cat) => {
         return new Promise((resolve) => {
-          if (cat.type === 'keyword') {
+          if (cat.type === 'kw') {
             placesService.keywordSearch(cat.kw, (data, status) => {
               resolve({ category: cat.code, items: status === kakao.maps.services.Status.OK ? data : [] });
             }, { location: center, radius: 800 });
@@ -887,11 +427,9 @@
           }
         });
       });
-
       return Promise.all(promises);
     }
 
-    // 스코어링 알고리즘
     function calculateStrictScore(dataMap) {
       let trafficScore = 10, eduScore = 10, convScore = 8, envScore = 8, riverBonus = 0;
       let closestSubway = null, closestSchool = null, riverStatus = null;
@@ -903,23 +441,13 @@
           if (dist <= 400) trafficScore = 25 + Math.min((group.items.length - 1) * 2.5, 5);
           else if (dist <= 800) trafficScore = 18 + Math.min((group.items.length - 1) * 2, 4);
         }
-
         if (group.category === 'SC4' && group.items.length > 0) {
           closestSchool = group.items[0];
           const dist = parseInt(closestSchool.distance);
-          if (dist <= 400) eduScore += 18;
-          else if (dist <= 800) eduScore += 12;
+          if (dist <= 400) eduScore += 18; else if (dist <= 800) eduScore += 12;
         }
-        if (group.category === 'AC5') {
-          if (group.items.length >= 8) eduScore += 12;
-          else if (group.items.length >= 3) eduScore += 8;
-        }
-
-        if (group.category === 'MT1' || group.category === 'CS2') {
-          if (group.items.length >= 5) convScore += 6;
-          else if (group.items.length >= 2) convScore += 4;
-        }
-
+        if (group.category === 'AC5' && group.items.length >= 3) eduScore += 8;
+        if (group.category === 'MT1' || group.category === 'CS2') { if (group.items.length >= 2) convScore += 4; }
         if (group.category === 'HP8' && group.items.length > 0) envScore += 6;
 
         if (group.category === 'RIVER' && group.items.length > 0) {
@@ -935,7 +463,6 @@
       envScore = Math.min(Math.round(envScore), 20);
 
       const totalScore = Math.min(trafficScore + eduScore + convScore + envScore + riverBonus, 100);
-
       let grade = 'C', gradeClass = 'grade-C';
       if (totalScore >= 88) { grade = 'S+ 등급'; gradeClass = 'grade-S-plus'; }
       else if (totalScore >= 78) { grade = 'S 등급'; gradeClass = 'grade-S'; }
@@ -948,52 +475,34 @@
     function renderReport(res) {
       document.getElementById('totalScoreText').innerHTML = `${res.totalScore}<span>/100</span>`;
       const badge = document.getElementById('gradeBadgeText');
-      badge.innerText = res.grade;
-      badge.className = `grade-badge ${res.gradeClass}`;
+      badge.innerText = res.grade; badge.className = `grade-badge ${res.gradeClass}`;
 
       const hanBadge = document.getElementById('hanRiverBadge');
       const hanBadgeText = document.getElementById('hanRiverBadgeText');
-
-      if (res.riverStatus === 'CHON') {
-        hanBadge.style.display = 'flex';
-        hanBadgeText.innerText = '🌊 초한강권 / 한강뷰 프리미엄 (+10점)';
-      } else if (res.riverStatus === 'INJEOP') {
-        hanBadge.style.display = 'flex';
-        hanBadgeText.innerText = '🌊 한강 인접 생활권 (+5점)';
-      } else {
-        hanBadge.style.display = 'none';
-      }
+      if (res.riverStatus === 'CHON') { hanBadge.style.display = 'flex'; hanBadgeText.innerText = '🌊 초한강권 / 한강뷰 (+10점)'; }
+      else if (res.riverStatus === 'INJEOP') { hanBadge.style.display = 'flex'; hanBadgeText.innerText = '🌊 한강 인접 (+5점)'; }
+      else { hanBadge.style.display = 'none'; }
 
       if (res.closestSubway) {
         const d = parseInt(res.closestSubway.distance);
         document.getElementById('subwayNameText').innerText = res.closestSubway.place_name;
         document.getElementById('subwayWalkText').innerText = `${d}m · 도보 ${Math.ceil(d / 80)}분`;
-      } else {
-        document.getElementById('subwayNameText').innerText = '800m 내 없음';
-        document.getElementById('subwayWalkText').innerText = '-';
-      }
+      } else { document.getElementById('subwayNameText').innerText = '800m 내 없음'; document.getElementById('subwayWalkText').innerText = '-'; }
 
       if (res.closestSchool) {
         const d = parseInt(res.closestSchool.distance);
         document.getElementById('schoolNameText').innerText = res.closestSchool.place_name;
         document.getElementById('schoolWalkText').innerText = `${d}m · 도보 ${Math.ceil(d / 80)}분`;
-      } else {
-        document.getElementById('schoolNameText').innerText = '800m 내 없음';
-        document.getElementById('schoolWalkText').innerText = '-';
-      }
+      } else { document.getElementById('schoolNameText').innerText = '800m 내 없음'; document.getElementById('schoolWalkText').innerText = '-'; }
 
       document.getElementById('scoreTrafficText').innerText = `${res.trafficScore}점`;
       document.getElementById('barTraffic').style.width = `${(res.trafficScore / 30) * 100}%`;
-
       document.getElementById('scoreEduText').innerText = `${res.eduScore}점`;
       document.getElementById('barEdu').style.width = `${(res.eduScore / 30) * 100}%`;
-
       document.getElementById('scoreConvText').innerText = `${res.convScore}점`;
       document.getElementById('barConv').style.width = `${(res.convScore / 20) * 100}%`;
-
       document.getElementById('scoreEnvText').innerText = `${res.envScore}점`;
       document.getElementById('barEnv').style.width = `${(res.envScore / 20) * 100}%`;
-
       document.getElementById('scoreRiverText').innerText = `+${res.riverBonus}점`;
       document.getElementById('barRiver').style.width = `${(res.riverBonus / 10) * 100}%`;
     }
@@ -1001,7 +510,6 @@
     function renderPlaceList(dataMap) {
       const listContainer = document.getElementById('placesList');
       listContainer.innerHTML = '';
-
       let allPlaces = [];
       dataMap.forEach(group => { allPlaces = allPlaces.concat(group.items); });
       allPlaces.sort((a, b) => parseInt(a.distance) - parseInt(b.distance));
@@ -1009,16 +517,8 @@
       allPlaces.forEach(place => {
         const card = document.createElement('div');
         card.className = 'place-card';
-        card.innerHTML = `
-          <span class="badge">${place.category_group_name || '주요시설'}</span>
-          <div class="title">${place.place_name}</div>
-          <div class="address">${place.road_address_name || place.address_name} (${place.distance}m)</div>
-        `;
-        card.onclick = () => {
-          const pos = new kakao.maps.LatLng(place.y, place.x);
-          map.panTo(pos);
-          showOverlay(place, pos);
-        };
+        card.innerHTML = `<span class="badge">${place.category_group_name || '시설'}</span><div class="title">${place.place_name}</div><div class="address">${place.road_address_name || place.address_name} (${place.distance}m)</div>`;
+        card.onclick = () => { const pos = new kakao.maps.LatLng(place.y, place.x); map.panTo(pos); showOverlay(place, pos); };
         listContainer.appendChild(card);
       });
     }
@@ -1037,31 +537,19 @@
       });
     }
 
-    function clearMarkers() {
-      currentMarkers.forEach(m => m.setMap(null));
-      currentMarkers = [];
-    }
+    function clearMarkers() { currentMarkers.forEach(m => m.setMap(null)); currentMarkers = []; }
 
     function showOverlay(place, pos) {
       if (activeOverlay) activeOverlay.setMap(null);
       const content = document.createElement('div');
       content.className = 'custom-overlay-card';
-      content.innerHTML = `
-        <strong>${place.place_name}</strong>
-        <div class="addr">${place.road_address_name || place.address_name}</div>
-        <a href="${place.place_url}" target="_blank" class="link-btn">카카오맵에서 상세 보기 ➔</a>
-      `;
+      content.innerHTML = `<strong>${place.place_name}</strong><div class="addr">${place.road_address_name || place.address_name}</div><a href="${place.place_url}" target="_blank" class="link-btn">상세보기 ➔</a>`;
       activeOverlay = new kakao.maps.CustomOverlay({ content: content, map: map, position: pos, yAnchor: 1 });
     }
 
     function toggleLayer(code, btn) {
-      if (activeCategories.includes(code)) {
-        activeCategories = activeCategories.filter(c => c !== code);
-        btn.classList.remove('active');
-      } else {
-        activeCategories.push(code);
-        btn.classList.add('active');
-      }
+      if (activeCategories.includes(code)) { activeCategories = activeCategories.filter(c => c !== code); btn.classList.remove('active'); }
+      else { activeCategories.push(code); btn.classList.add('active'); }
       renderCategoryMarkers(lastScanData);
     }
 
@@ -1069,19 +557,12 @@
       e.preventDefault();
       const kw = document.getElementById('keywordInput').value.trim();
       if (!kw) return;
-
       placesService.keywordSearch(kw, (data, status) => {
-        if (status === kakao.maps.services.Status.OK) {
-          const first = data[0];
-          const loc = new kakao.maps.LatLng(first.y, first.x);
-          analyzeLocation(loc);
-        } else {
-          alert('검색 결과를 찾을 수 없습니다.');
-        }
+        if (status === kakao.maps.services.Status.OK) { analyzeLocation(new kakao.maps.LatLng(data[0].y, data[0].x)); }
       });
     }
 
-    // 탭 전환 핸들러
+    // 📌 탭 전환 핵심 자바스크립트 함수
     function switchTab(tabName) {
       const reportTab = document.getElementById('reportTab');
       const priceTab = document.getElementById('priceTab');
@@ -1091,24 +572,25 @@
       const priceBtn = document.getElementById('tabPriceBtn');
       const listBtn = document.getElementById('tabListBtn');
 
-      // 초기화
-      reportTab.style.display = 'none';
-      priceTab.style.display = 'none';
+      // 전체 가림 처리
+      reportTab.style.display = 'none'; 
+      priceTab.style.display = 'none'; 
       listTab.style.display = 'none';
 
-      reportBtn.classList.remove('active');
-      priceBtn.classList.remove('active');
+      reportBtn.classList.remove('active'); 
+      priceBtn.classList.remove('active'); 
       listBtn.classList.remove('active');
 
-      if (tabName === 'report') {
-        reportTab.style.display = 'block';
-        reportBtn.classList.add('active');
-      } else if (tabName === 'price') {
-        priceTab.style.display = 'block';
-        priceBtn.classList.add('active');
-      } else if (tabName === 'list') {
-        listTab.style.display = 'block';
-        listBtn.classList.add('active');
+      // 선택한 탭 보이기 처리
+      if (tabName === 'report') { 
+        reportTab.style.display = 'block'; 
+        reportBtn.classList.add('active'); 
+      } else if (tabName === 'price') { 
+        priceTab.style.display = 'block'; 
+        priceBtn.classList.add('active'); 
+      } else if (tabName === 'list') { 
+        listTab.style.display = 'block'; 
+        listBtn.classList.add('active'); 
       }
     }
   </script>
