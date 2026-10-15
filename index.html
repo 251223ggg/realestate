@@ -309,7 +309,7 @@
             if (result[i].region_type === 'B') {
               document.getElementById('currentAddressText').innerText = result[i].address_name;
               const lawdCd = result[i].code.substring(0, 5);
-              fetchRealEstateTransactions(lawdCd); // 안정화된 실거래가 스캔
+              fetchRealEstateTransactions(lawdCd); // 실거래가 스캔
               break;
             }
           }
@@ -326,7 +326,7 @@
     }
 
     // 🗓️ 최근 연월 목록 구하기
-    function getRecentMonthsList(count = 4) {
+    function getRecentMonthsList(count = 5) {
       const list = [];
       const now = new Date();
       for (let i = 1; i <= count; i++) {
@@ -338,7 +338,7 @@
       return list;
     }
 
-    // 🌐 [안정화된 실거래가 API 스캔]
+    // 🌐 [스마트 실거래가 API 스캔]
     async function fetchRealEstateTransactions(lawdCd) {
       const container = document.getElementById('realEstatePriceContainer');
 
@@ -355,14 +355,12 @@
       container.innerHTML = `<div class="info-message-box">🔄 아파트 실거래가 정보를 안전하게 불러오는 중입니다...</div>`;
 
       let cleanKey = PUBLIC_DATA_SERVICE_KEY.trim();
-      try { if (cleanKey.includes('%')) cleanKey = decodeURIComponent(cleanKey); } catch(e) {}
 
-      const monthsToTry = getRecentMonthsList(4); // 최근 4개월 순차 조회
+      const monthsToTry = getRecentMonthsList(5); // 최근 5개월 순차 탐색
       let tradesFound = [];
       let foundMonth = '';
       let lastErrorMessage = '';
 
-      // 순차 호출로 프록시 차단 방지
       for (const ym of monthsToTry) {
         const resData = await requestMolitApi(cleanKey, lawdCd, ym);
         
@@ -374,7 +372,7 @@
         if (resData.items && resData.items.length > 0) {
           tradesFound = resData.items;
           foundMonth = ym;
-          break; // 최근 데이터 확보 시 즉시 종료
+          break; // 최근 데이터 수집 성공 시 종료
         }
       }
 
@@ -382,13 +380,15 @@
         if (lastErrorMessage) {
           container.innerHTML = `
             <div class="info-message-box" style="color: #e11d48; background: #fff1f2; border-color: #fecdd3;">
-              ⚠️ <strong>공공데이터 API 오류</strong><br><br>
-              • <strong>상세 원인:</strong> ${lastErrorMessage}<br>
-              • <strong>해결 방법:</strong> 공공데이터포털에서 발급받은 <strong>[Decoding 키]</strong>를 사용했는지 확인해 주세요.
+              ⚠️ <strong>공공데이터 API 연결 안내</strong><br><br>
+              • <strong>상세 사유:</strong> ${lastErrorMessage}<br>
+              • <strong>체크리스트:</strong><br>
+                1) 공공데이터포털에서 발급받은 <strong>[Decoding 키]</strong>를 사용했는지 확인해 주세요.<br>
+                2) 키 발급 직후라면 시스템 승인까지 <strong>1~2시간</strong> 소요됩니다.
             </div>
           `;
         } else {
-          container.innerHTML = `<div class="info-message-box">📭 최근 4개월간 해당 지역에 신고된 아파트 매매 거래 내역이 없습니다.</div>`;
+          container.innerHTML = `<div class="info-message-box">📭 최근 5개월간 해당 지역에 신고된 아파트 매매 거래 내역이 없습니다.</div>`;
         }
         return;
       }
@@ -414,19 +414,26 @@
       });
     }
 
-    // 안전한 CORS 우회 & JSON/XML 자동 파싱
-    async function requestMolitApi(serviceKey, lawdCd, dealYmd) {
-      const encodedKey = encodeURIComponent(serviceKey);
-      const targetUrl = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade?serviceKey=${encodedKey}&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}&_type=json`;
+    // 다중 CORS 우회 및 이중 인코딩 방지 요청
+    async function requestMolitApi(rawServiceKey, lawdCd, dealYmd) {
+      // 인코딩/디코딩 상태 자동 감지
+      let serviceKey = rawServiceKey;
+      if (!rawServiceKey.includes('%')) {
+        serviceKey = encodeURIComponent(rawServiceKey);
+      }
+
+      const targetUrl = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade?serviceKey=${serviceKey}&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}&_type=json`;
       
+      // 최신 고성능 CORS 프록시 서비스 목록
       const proxies = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+        `https://thingproxy.freeboard.io/fetch/${targetUrl}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
       ];
 
-      for (const proxy of proxies) {
+      for (const proxyUrl of proxies) {
         try {
-          const res = await fetch(proxy);
+          const res = await fetch(proxyUrl);
           if (!res.ok) continue;
 
           const text = await res.text();
@@ -437,7 +444,7 @@
             const responseData = jsonObj.response || jsonObj.getRTMSDataSvcAptTrade;
             
             if (responseData && responseData.header) {
-              const code = responseData.header.resultCode;
+              const code = String(responseData.header.resultCode);
               if (code !== '00' && code !== '0') {
                 return { error: responseData.header.resultMsg || '인증키 거부' };
               }
@@ -448,7 +455,7 @@
               const itemsArray = Array.isArray(rawItems) ? rawItems : [rawItems];
               const parsed = itemsArray.map(item => ({
                 aptName: item.아파트 || item.단지명 || '아파트',
-                price: item.거래금액?.trim() || '0',
+                price: String(item.거래금액 || '0').trim(),
                 area: item.전용면적 || '0',
                 floor: item.층 || '-',
                 month: item.월 || dealYmd.slice(4,6),
@@ -457,11 +464,14 @@
               return { items: parsed };
             }
           } catch (e) {
-            // JSON 파싱 실패 시 XML 파싱 시도
+            // 2. XML 응답 파싱 시도
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(text, "text/xml");
-            const xmlItems = xmlDoc.getElementsByTagName("item");
+            
+            const errMsg = getXmlValue(xmlDoc, 'errMsg') || getXmlValue(xmlDoc, 'returnAuthMsg');
+            if (errMsg) return { error: errMsg };
 
+            const xmlItems = xmlDoc.getElementsByTagName("item");
             if (xmlItems.length > 0) {
               const parsed = [];
               for (let i = 0; i < xmlItems.length; i++) {
@@ -479,10 +489,10 @@
             }
           }
         } catch (err) {
-          console.warn('프록시 응답 실패:', proxy);
+          console.warn('프록시 시도 실패:', proxyUrl);
         }
       }
-      return { error: 'CORS 프록시 연결 실패' };
+      return { error: 'CORS 프록시 서버 통신 실패 (키 등록 상태 확인 필요)' };
     }
 
     function getXmlValue(parent, tagName) {
